@@ -1,0 +1,15 @@
+# Virtual environment
+.venv/
+
+# Credentials — use config.example.py as a template
+config.py
+
+# MicroPython compiled bytecode
+*.mpy
+
+# PyCharm personal IDE state
+.idea/workspace.xml
+
+# OS
+.DS_Store
+Thumbs.db
