@@ -1,6 +1,7 @@
 import machine
 import utime
 from inputs.base import Input
+from config import DEBUG
 
 
 class UltrasonicInput(Input):
@@ -48,6 +49,6 @@ class UltrasonicInput(Input):
                 abs(cm - self._last_distance) < self._dead_zone_cm):
             return None
         self._last_distance = cm
-        print("[%s] emit: distance=%.1f cm" % (self.slot_id, cm))
+        if DEBUG: print("[%s] emit: distance=%.1f cm" % (self.slot_id, cm))
         return [{"slotId": self.slot_id, "inputType": self.input_type,
                  "event": "change", "value": cm}]

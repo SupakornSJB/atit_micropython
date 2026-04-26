@@ -2,6 +2,7 @@ import dht
 import machine
 import utime
 from inputs.base import Input
+from config import DEBUG
 
 
 class Dht11Input(Input):
@@ -20,13 +21,13 @@ class Dht11Input(Input):
         try:
             self._sensor.measure()
             temp = self._sensor.temperature()
-            print("[%s] raw read: temp=%s" % (self.slot_id, temp))
+            if DEBUG: print("[%s] raw read: temp=%s" % (self.slot_id, temp))
         except Exception as e:
             print("[%s] read error:" % self.slot_id, e)
             return None
         if temp == self._last_temp:
             return None
         self._last_temp = temp
-        print("[%s] emit: temp=%.1f" % (self.slot_id, temp))
+        if DEBUG: print("[%s] emit: temp=%.1f" % (self.slot_id, temp))
         return [{"slotId": self.slot_id, "inputType": self.input_type,
                  "event": "change", "value": float(temp)}]

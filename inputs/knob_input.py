@@ -1,6 +1,7 @@
 from machine import ADC, Pin
 import utime
 from inputs.base import Input
+from config import DEBUG
 
 
 class KnobInput(Input):
@@ -20,7 +21,7 @@ class KnobInput(Input):
         value = max(0.0, min(1.0, value))
         if self._last_value is None or abs(value - self._last_value) > self._dead_zone:
             self._last_value = value
-            print("[%s] emit: change value=%.3f" % (self.slot_id, value))
+            if DEBUG: print("[%s] emit: change value=%.3f" % (self.slot_id, value))
             return [{"slotId": self.slot_id, "inputType": self.input_type,
                      "event": "change", "value": value}]
         return None
