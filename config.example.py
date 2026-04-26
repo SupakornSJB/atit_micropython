@@ -1,3 +1,5 @@
+DEBUG = False  # set True to enable verbose serial output from all input classes
+
 WIFI_SSID     = "your-ssid"
 WIFI_PASSWORD = "your-password"
 
@@ -29,7 +31,7 @@ MQTT_TOPIC_TEMPLATE = "game/devices/{device_id}/slot/{slot_id}"
 # DEVICE_ID = "esp32-stage"
 # INPUTS = [
 #     {"slotId": "temp",      "type": "dht11",      "pin": 4,
-#      "read_interval_ms": 2000},
+#      "read_interval_ms": 2000},  # slotId matches sensor type — publishes both temp (value) and humidity (auxiliary)
 #     {"slotId": "distance",  "type": "ultrasonic",  "trig_pin": 5, "echo_pin": 18,
 #      "min_cm": 2.0, "max_cm": 200.0, "dead_zone_cm": 2.0, "read_interval_ms": 100},
 #     {"slotId": "pipe-flip", "type": "button",      "pin": 14, "debounce_ms": 50},

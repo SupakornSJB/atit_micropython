@@ -62,6 +62,8 @@ class IoTDevice:
             "timestamp": utime.time(),
             "sequenceNumber": self._seq,
         }
+        if "auxiliary" in event_dict:
+            payload["auxiliary"] = event_dict["auxiliary"]
         mqtt_client.publish(topic, payload)
         self._seq += 1
 

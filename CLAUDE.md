@@ -7,6 +7,8 @@ Always check the latest file there for context on recent changes before making s
 
 - [`updates/2026-04-24.md`](updates/2026-04-24.md) — Local Mosquitto setup, WiFi 2.4GHz fix, MQTT config
 - [`updates/2026-04-25.md`](updates/2026-04-25.md) — Phase 2 & 2.1 implementation, slotId protocol fix, DHT11 debugging
+- [`updates/2026-04-26.md`](updates/2026-04-26.md) — Phase 3, 3.1, 3.2 implementation, DEBUG flag, auxiliary field for DHT11
+- [`updates/2026-04-27.md`](updates/2026-04-27.md) — DHT11 slotId fix, ESP32-32U pinout, next steps checklist
 
 ## What This Project Is
 
@@ -650,7 +652,7 @@ class Dht11Input(Input):
 ### Config entry
  
 ```python
-{ "slotId": "temp", "type": "dht11", "pin": 4, "read_interval_ms": 2000 }
+{ "slotId": "dht11", "type": "dht11", "pin": 4, "read_interval_ms": 2000 }
 ```
  
 ---
@@ -737,7 +739,7 @@ class UltrasonicInput(Input):
 DEVICE_ID = "esp32-stage"
  
 INPUTS = [
-    { "slotId": "temp",      "type": "dht11",      "pin": 4,
+    { "slotId": "dht11",     "type": "dht11",      "pin": 4,
       "read_interval_ms": 2000 },
     { "slotId": "distance",  "type": "ultrasonic",  "trig_pin": 5, "echo_pin": 18,
       "min_cm": 2.0, "max_cm": 200.0, "dead_zone_cm": 2.0, "read_interval_ms": 100 },
@@ -762,4 +764,126 @@ def _build_input(self, cfg: dict) -> Input:
 ```
  
 No other changes to `device.py` — the polling loop handles all input types uniformly.
+ 
+---
+ 
+# Phase 3.1 — Protocol Fix: Auxiliary Field for Multi-Output Sensors
+ 
+## What Changed in Phase 3.1
+ 
+Phase 3 modelled DHT11 as a single-value sensor, discarding humidity. This was
+incorrect — DHT11 produces temperature AND humidity from one physical read on one
+data pin. Splitting into two slots misrepresents the hardware. Phase 3.1 fixes this
+by adding an optional `auxiliary` map to the MQTT payload.
+ 
+---
+ 
+## Architectural Decision: `auxiliary` Is for Sensor Overflow Only
+ 
+The `auxiliary` field is added to the payload defensively — it costs nothing when
+empty and future-proofs any multi-output sensor without protocol changes. However
+it has a strict usage rule:
+ 
+> **`auxiliary` is always read-optional.** Receivers must never require it.
+> Senders populate it only when a single physical source produces multiple
+> simultaneous values from one hardware read. It is not a general-purpose
+> parameter bag.
+ 
+---
+ 
+## Phase 3.1 MQTT Payload Update (Additive — No Breaking Change)
+ 
+New optional `auxiliary` field added to all payloads. Ignored when empty.
+All existing single-value slots are unaffected — they simply never populate it.
+ 
+```json
+{
+  "deviceId": "esp32-stage",
+  "slotId": "dht11",
+  "inputType": "dht11",
+  "event": "change",
+  "value": 28.5,
+  "auxiliary": {
+    "humidity": 65.0
+  },
+  "timestamp": 1234567890,
+  "sequenceNumber": 4821
+}
+```
+ 
+- `value` — primary reading (temperature for DHT11)
+- `auxiliary.humidity` — secondary reading from the same physical read
+- All other input types: `auxiliary` omitted entirely
+---
+ 
+## Phase 3.1 `Dht11Input` Update
+ 
+Publish both temperature and humidity on every read:
+ 
+```python
+def tick(self) -> list[dict] | None:
+    now = utime.ticks_ms()
+    if utime.ticks_diff(now, self._last_read_ms) < self._read_interval_ms:
+        return None
+    self._last_read_ms = now
+    try:
+        self._sensor.measure()
+        temp     = float(self._sensor.temperature())
+        humidity = float(self._sensor.humidity())
+        if temp == self._last_temp and humidity == self._last_humidity:
+            return None
+        self._last_temp     = temp
+        self._last_humidity = humidity
+        return [{
+            "event":     "change",
+            "value":     temp,
+            "auxiliary": { "humidity": humidity }
+        }]
+    except Exception as e:
+        print("[DHT11] read error:", e)
+        return None
+```
+ 
+Humidity is now always published alongside temperature. The server decides
+what to do with it — the firmware does not filter or discard readings.
+ 
+---
+ 
+## Phase 3.1 Payload Serialization in `mqtt_client.py`
+ 
+`publish()` already serializes the full event dict to JSON. The `auxiliary`
+key is included automatically if present — no changes needed to `mqtt_client.py`.
+`json.dumps()` handles nested dicts correctly in MicroPython.
+ 
+
+---
+ 
+# Phase 3.2 — Design Fix: Swap Temperature and Humidity Effects
+ 
+## What Changed in Phase 3.2
+ 
+Phase 3 and 3.1 assigned spawn rate to temperature and left humidity unused.
+This was based on an incorrect assumption about DHT11 sensor responsiveness.
+In practice:
+ 
+- **Temperature** changes very slowly (10–30 seconds for meaningful shift)
+  — unsuitable for a dynamic real-time mechanic like spawn rate
+- **Humidity** changes quickly (2–3 seconds from breath or hand proximity)
+  — well suited for immediate player-visible effects
+Phase 3.2 swaps the effects. No firmware code changes required — the firmware
+already publishes both `value` (temperature) and `auxiliary.humidity` (humidity)
+since Phase 3.1. This fix is purely a server and Unity concern.
+ 
+## No Firmware Changes
+ 
+The firmware is unaffected. `Dht11Input` already publishes:
+```json
+{
+  "value": 28.5,
+  "auxiliary": { "humidity": 65.0 }
+}
+```
+ 
+Both values flow through the pipeline unchanged. What changes is how the
+ASP.NET server and Unity *interpret* them.
  
