@@ -551,4 +551,215 @@ class Input:
 ```python
 topic = "game/devices/%s/slot/%s" % (self.device_id, event["slotId"])
 ```
+
+# Phase 3 — Space Shooter: New Input Types & Stage Controller
+ 
+## What Changed in Phase 3
+ 
+Phase 3 adds three new hardware input types to support the space shooter game and
+the stage controller role. All existing input types (`ButtonInput`, `KnobInput`)
+are unchanged. The MQTT topic schema, payload format, and device registry protocol
+are all unchanged from Phase 2.1.
+ 
+---
+ 
+## Phase 3 Player & Device Map
+ 
+The full game has six ESP32 devices across five roles:
+ 
+| Player | Role | Device | Slots |
+|---|---|---|---|
+| Player 1 | Ship | ESP32 + thumbstick + button | `joystick-x`, `joystick-y`, `stick-click`, `fire` |
+| Player 2 | Ship | ESP32 + thumbstick + button | `joystick-x`, `joystick-y`, `stick-click`, `fire` |
+| Player 3 | Boss bird | ESP32 + button | `flap` |
+| Player 4 | Boss bird | ESP32 + button | `flap` |
+| Stage player | Environment + stage | ESP32 + DHT11 + ultrasonic + button | `temp`, `distance`, `pipe-flip` |
+ 
+The stage player device combines all environmental and stage inputs on one ESP32.
+No `playerId` is associated with the stage player device — `inputRole` is `"environment"`
+and `"stage"` in the registry.
+ 
+---
+ 
+## New Input Type 1: Thumbstick (Analog Joystick Module)
+ 
+The thumbstick module has 5 pins: VCC, GND, VRX (X axis ADC), VRY (Y axis ADC),
+SW (click button GPIO). It is three `slotId` entries in config:
+ 
+```python
+{ "slotId": "joystick-x",  "type": "knob",   "pin": 34, "min_raw": 0, "max_raw": 4095, "dead_zone": 0.04 },
+{ "slotId": "joystick-y",  "type": "knob",   "pin": 35, "min_raw": 0, "max_raw": 4095, "dead_zone": 0.04 },
+{ "slotId": "stick-click", "type": "button", "pin": 32, "debounce_ms": 50 },
+```
+ 
+Use a slightly larger dead zone (`0.04`) for joystick axes than for standalone knobs —
+thumbstick potentiometers have more mechanical jitter at center position. Center
+resting position reads approximately `2048` raw (0.5 normalized) — Unity maps
+`0.5 → 0 velocity`, `0.0 → full left/down`, `1.0 → full right/up`.
+ 
+`KnobInput` handles VRX and VRY with no code changes. `ButtonInput` handles SW
+with no code changes. No new class needed.
+ 
+---
+ 
+## New Input Type 2: DHT11 Temperature Sensor
+ 
+DHT11 uses a single-wire protocol — one data pin, no ADC. Requires a MicroPython
+DHT library (`import dht`, available in MicroPython standard library).
+ 
+**Only temperature is used in Phase 3.** Humidity is read but discarded.
+ 
+### `inputs/dht11_input.py`
+ 
+```python
+import dht
+import machine
+from inputs.base import Input
+ 
+class Dht11Input(Input):
+    def __init__(self, slot_id: str, pin: int, read_interval_ms: int = 2000):
+        super().__init__(slot_id, "sensor")
+        self._sensor = dht.DHT11(machine.Pin(pin))
+        self._read_interval_ms = read_interval_ms
+        self._last_read_ms = 0
+        self._last_temp = None
+ 
+    def tick(self) -> list[dict] | None:
+        now = utime.ticks_ms()
+        if utime.ticks_diff(now, self._last_read_ms) < self._read_interval_ms:
+            return None
+        self._last_read_ms = now
+        try:
+            self._sensor.measure()
+            temp = self._sensor.temperature()  # Celsius float
+            if temp == self._last_temp:
+                return None
+            self._last_temp = temp
+            return [{ "event": "change", "value": float(temp) }]
+        except Exception as e:
+            print("[DHT11] read error:", e)
+            return None
+```
+ 
+**Key constraints:**
+- DHT11 minimum read interval is 1 second — enforce `read_interval_ms >= 1000`
+- Value is raw Celsius (e.g. `28.0`) — NOT normalized to 0.0–1.0. Temperature is an
+  absolute physical value; normalization would lose meaning. Unity interprets raw Celsius.
+- Do not normalize — the ASP.NET server passes temperature through as-is to Unity
+- Read errors are caught and skipped silently — DHT11 occasionally fails on first read
+### Config entry
+ 
+```python
+{ "slotId": "temp", "type": "dht11", "pin": 4, "read_interval_ms": 2000 }
+```
+ 
+---
+ 
+## New Input Type 3: Ultrasonic Range Sensor (HC-SR04)
+ 
+HC-SR04 uses two GPIO pins: TRIG (output pulse) and ECHO (input pulse width).
+Distance is calculated from echo pulse duration.
+ 
+### `inputs/ultrasonic_input.py`
+ 
+```python
+import machine
+import utime
+from inputs.base import Input
+ 
+class UltrasonicInput(Input):
+    def __init__(self, slot_id: str, trig_pin: int, echo_pin: int,
+                 min_cm: float = 2.0, max_cm: float = 200.0,
+                 dead_zone_cm: float = 2.0, read_interval_ms: int = 100):
+        super().__init__(slot_id, "sensor")
+        self._trig = machine.Pin(trig_pin, machine.Pin.OUT)
+        self._echo = machine.Pin(echo_pin, machine.Pin.IN)
+        self._min_cm = min_cm
+        self._max_cm = max_cm
+        self._dead_zone_cm = dead_zone_cm
+        self._read_interval_ms = read_interval_ms
+        self._last_read_ms = 0
+        self._last_distance = None
+ 
+    def _measure_cm(self) -> float | None:
+        self._trig.value(0)
+        utime.sleep_us(2)
+        self._trig.value(1)
+        utime.sleep_us(10)
+        self._trig.value(0)
+        start = utime.ticks_us()
+        timeout = utime.ticks_add(start, 30000)
+        while self._echo.value() == 0:
+            if utime.ticks_diff(utime.ticks_us(), timeout) > 0:
+                return None
+        pulse_start = utime.ticks_us()
+        while self._echo.value() == 1:
+            if utime.ticks_diff(utime.ticks_us(), timeout) > 0:
+                return None
+        pulse_end = utime.ticks_us()
+        duration_us = utime.ticks_diff(pulse_end, pulse_start)
+        return (duration_us * 0.0343) / 2.0
+ 
+    def tick(self) -> list[dict] | None:
+        now = utime.ticks_ms()
+        if utime.ticks_diff(now, self._last_read_ms) < self._read_interval_ms:
+            return None
+        self._last_read_ms = now
+        cm = self._measure_cm()
+        if cm is None:
+            return None
+        cm = max(self._min_cm, min(self._max_cm, cm))
+        if (self._last_distance is not None and
+                abs(cm - self._last_distance) < self._dead_zone_cm):
+            return None
+        self._last_distance = cm
+        return [{ "event": "change", "value": cm }]
+```
+ 
+**Key constraints:**
+- Value is raw centimetres (e.g. `34.5`) — NOT normalized. Zone computation happens
+  server-side, not in firmware. Unity never sees raw distance — only resolved zone ID.
+- Dead zone of 2cm prevents jitter from noisy readings
+- 30ms timeout on echo pulse prevents infinite loop if sensor is obstructed
+- Read interval 100ms (10Hz) — sufficient for zone detection, not too noisy
+### Config entry
+ 
+```python
+{ "slotId": "distance", "type": "ultrasonic", "trig_pin": 5, "echo_pin": 18,
+  "min_cm": 2.0, "max_cm": 200.0, "dead_zone_cm": 2.0, "read_interval_ms": 100 }
+```
+ 
+---
+ 
+## Phase 3 Stage Device Config (`config.py`)
+ 
+```python
+DEVICE_ID = "esp32-stage"
+ 
+INPUTS = [
+    { "slotId": "temp",      "type": "dht11",      "pin": 4,
+      "read_interval_ms": 2000 },
+    { "slotId": "distance",  "type": "ultrasonic",  "trig_pin": 5, "echo_pin": 18,
+      "min_cm": 2.0, "max_cm": 200.0, "dead_zone_cm": 2.0, "read_interval_ms": 100 },
+    { "slotId": "pipe-flip", "type": "button",      "pin": 14, "debounce_ms": 50 },
+]
+```
+ 
+---
+ 
+## Phase 3 `device.py` Update
+ 
+Add `Dht11Input` and `UltrasonicInput` to the factory in `IoTDevice.add_input()`:
+ 
+```python
+def _build_input(self, cfg: dict) -> Input:
+    t = cfg["type"]
+    if t == "button":     return ButtonInput(...)
+    if t == "knob":       return KnobInput(...)
+    if t == "dht11":      return Dht11Input(...)
+    if t == "ultrasonic": return UltrasonicInput(...)
+    raise ValueError("Unknown input type: " + t)
+```
+ 
+No other changes to `device.py` — the polling loop handles all input types uniformly.
  

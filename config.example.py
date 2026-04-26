@@ -14,11 +14,34 @@ MQTT_CLIENT_ID = DEVICE_ID
 # Topic template — must match server wildcard: game/devices/+/slot/+
 MQTT_TOPIC_TEMPLATE = "game/devices/{device_id}/slot/{slot_id}"
 
-# Inputs — slotId is a physical identifier only (e.g. btn1, knob1)
-# Semantic name and player assignment live in the ASP.NET device registry
+# --- Phase 3 device examples ---
+
+# Player ship device (thumbstick + fire button)
+# DEVICE_ID = "esp32-p1-ship"
+# INPUTS = [
+#     {"slotId": "joystick-x",  "type": "knob",   "pin": 34, "min_raw": 0, "max_raw": 4095, "dead_zone": 0.04},
+#     {"slotId": "joystick-y",  "type": "knob",   "pin": 35, "min_raw": 0, "max_raw": 4095, "dead_zone": 0.04},
+#     {"slotId": "stick-click", "type": "button", "pin": 32, "debounce_ms": 50},
+#     {"slotId": "fire",        "type": "button", "pin": 14, "debounce_ms": 50},
+# ]
+
+# Stage controller device (DHT11 + ultrasonic + button)
+# DEVICE_ID = "esp32-stage"
+# INPUTS = [
+#     {"slotId": "temp",      "type": "dht11",      "pin": 4,
+#      "read_interval_ms": 2000},
+#     {"slotId": "distance",  "type": "ultrasonic",  "trig_pin": 5, "echo_pin": 18,
+#      "min_cm": 2.0, "max_cm": 200.0, "dead_zone_cm": 2.0, "read_interval_ms": 100},
+#     {"slotId": "pipe-flip", "type": "button",      "pin": 14, "debounce_ms": 50},
+# ]
+
+# Boss bird device (single flap button)
+# DEVICE_ID = "esp32-p3-bird"
+# INPUTS = [
+#     {"slotId": "flap", "type": "button", "pin": 14, "debounce_ms": 50},
+# ]
+
+# Default minimal config
 INPUTS = [
-    {"slotId": "btn1",  "type": "button", "pin": 14, "debounce_ms": 50},
-    # {"slotId": "btn2",  "type": "button", "pin": 27, "debounce_ms": 50},
-    # {"slotId": "knob1", "type": "knob",   "pin": 34, "min_raw": 0, "max_raw": 4095, "dead_zone": 0.02},
-    # {"slotId": "dht1",  "type": "dht11",  "pin": 4},
+    {"slotId": "btn1", "type": "button", "pin": 14, "debounce_ms": 50},
 ]

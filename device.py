@@ -4,6 +4,10 @@ from machine import Pin
 import wifi_client
 import mqtt_client
 import config
+from inputs.button_input import ButtonInput
+from inputs.knob_input import KnobInput
+from inputs.dht11_input import Dht11Input
+from inputs.ultrasonic_input import UltrasonicInput
 
 
 class IoTDevice:
@@ -17,6 +21,24 @@ class IoTDevice:
     def add_input(self, inp):
         self._inputs.append(inp)
         print("[device] registered slot: %s (%s)" % (inp.slot_id, inp.input_type))
+
+    def _build_input(self, cfg):
+        t = cfg["type"]
+        if t == "button":
+            return ButtonInput(cfg["slotId"], cfg["pin"], cfg.get("debounce_ms", 50))
+        if t == "knob":
+            return KnobInput(cfg["slotId"], cfg["pin"],
+                             cfg.get("min_raw", 0), cfg.get("max_raw", 4095),
+                             cfg.get("dead_zone", 0.02))
+        if t == "dht11":
+            return Dht11Input(cfg["slotId"], cfg["pin"],
+                              cfg.get("read_interval_ms", 2000))
+        if t == "ultrasonic":
+            return UltrasonicInput(cfg["slotId"], cfg["trig_pin"], cfg["echo_pin"],
+                                   cfg.get("min_cm", 2.0), cfg.get("max_cm", 200.0),
+                                   cfg.get("dead_zone_cm", 2.0),
+                                   cfg.get("read_interval_ms", 100))
+        raise ValueError("Unknown input type: " + t)
 
     def _blink_error(self):
         for _ in range(10):
