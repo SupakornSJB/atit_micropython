@@ -29,7 +29,7 @@ class IoTDevice:
         if t == "knob":
             return KnobInput(cfg["slotId"], cfg["pin"],
                              cfg.get("min_raw", 0), cfg.get("max_raw", 4095),
-                             cfg.get("dead_zone", 0.02))
+                             cfg.get("dead_zone", 0.02), cfg.get("center", 1700))
         if t == "dht11":
             return Dht11Input(cfg["slotId"], cfg["pin"],
                               cfg.get("read_interval_ms", 2000))
