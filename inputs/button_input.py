@@ -10,6 +10,7 @@ class ButtonInput(Input):
         pull = Pin.PULL_UP if pull_up else Pin.PULL_DOWN
         self._pin = Pin(pin, Pin.IN, pull)
         self._debounce_ms = debounce_ms
+        self._pull_up = pull_up
         self._last_state = self._pin.value()
         self._last_change_ms = utime.ticks_ms()
 
@@ -20,7 +21,7 @@ class ButtonInput(Input):
             if utime.ticks_diff(now, self._last_change_ms) >= self._debounce_ms:
                 self._last_state = current
                 self._last_change_ms = now
-                if current == 0:
+                if (current == 0) == self._pull_up:
                     if DEBUG: print("[%s] emit: pressed" % self.slot_id)
                     return [{"slotId": self.slot_id, "inputType": self.input_type,
                               "event": "pressed", "value": 1.0}]

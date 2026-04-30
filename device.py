@@ -25,7 +25,7 @@ class IoTDevice:
     def _build_input(self, cfg):
         t = cfg["type"]
         if t == "button":
-            return ButtonInput(cfg["slotId"], cfg["pin"], cfg.get("debounce_ms", 50))
+            return ButtonInput(cfg["slotId"], cfg["pin"], cfg.get("debounce_ms", 50), cfg.get("pull_up", True))
         if t == "knob":
             return KnobInput(cfg["slotId"], cfg["pin"],
                              cfg.get("min_raw", 0), cfg.get("max_raw", 4095),
@@ -91,4 +91,4 @@ class IoTDevice:
                 print("Device error:", e)
                 self._blink_error()
                 utime.sleep(backoff)
-                backoff = min(backoff * 2, 30)
+                backoff = min(backoff * 2, 30)	

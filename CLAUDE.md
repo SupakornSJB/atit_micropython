@@ -887,3 +887,143 @@ The firmware is unaffected. `Dht11Input` already publishes:
 Both values flow through the pipeline unchanged. What changes is how the
 ASP.NET server and Unity *interpret* them.
  
+
+---
+ 
+# Phase 3.3 — Infrastructure Fix: gRPC Connection Stability
+ 
+## What Changed in Phase 3.3
+ 
+No firmware changes. The gRPC connection stability fix is entirely in the
+ASP.NET server. This section is included for completeness — no action required
+in this project.
+ 
+ 
+---
+ 
+---
+ 
+# Phase 4 — Library Foundation
+ 
+## What Changed in Phase 4
+ 
+Phase 4 restructures the firmware into a clear library/game separation.
+No protocol changes, no new input types. This is purely a structural refactor
+that makes the firmware reusable as a source library for other games.
+ 
+---
+ 
+## Architectural Decision: Source Library, Not Package
+ 
+The firmware is distributed as a **source library** — developers clone the repo
+and write their game code in the `game/` folder. The `iotgame/` folder is the
+library and should not be modified. This approach keeps the code visible and
+explainable without requiring a package distribution mechanism.
+ 
+```
+Clone repo → configure game/config.py → run game/main.py
+```
+ 
+---
+ 
+## Phase 4 Folder Structure
+ 
+```
+iotgame-firmware/
+├── iotgame/                      ← LIBRARY — do not modify
+│   ├── __init__.py               ← exports IoTDevice + all Input types
+│   ├── device.py                 ← IoTDevice class
+│   ├── mqtt.py                   ← internal MQTT client
+│   ├── wifi.py                   ← internal WiFi client
+│   └── inputs/
+│       ├── __init__.py           ← exports all input types
+│       ├── base.py               ← abstract Input base class
+│       ├── button_input.py
+│       ├── knob_input.py
+│       ├── dht11_input.py
+│       └── ultrasonic_input.py
+│
+└── game/                         ← DEVELOPER CODE — modify freely
+    ├── main.py                   ← entry point, wire up device + inputs
+    └── config.py                 ← all device configuration
+```
+ 
+---
+ 
+## Public Library API (`iotgame/__init__.py`)
+ 
+Everything a developer needs is exported from the top-level package:
+ 
+```python
+from iotgame import IoTDevice, ButtonInput, KnobInput, Dht11Input, UltrasonicInput
+```
+ 
+Internal modules (`mqtt`, `wifi`) are not exported — developers never import them
+directly. All internal implementation details are hidden behind `IoTDevice`.
+ 
+---
+ 
+## Developer Entry Point (`game/main.py`)
+ 
+The only file a developer writes from scratch. Full example:
+ 
+```python
+from iotgame import IoTDevice, ButtonInput, KnobInput, Dht11Input, UltrasonicInput
+import config
+ 
+device = IoTDevice(
+    device_id     = config.DEVICE_ID,
+    mqtt_host     = config.MQTT_HOST,
+    mqtt_port     = config.MQTT_PORT,
+    mqtt_user     = config.MQTT_USER,
+    mqtt_password = config.MQTT_PASSWORD,
+    wifi_ssid     = config.WIFI_SSID,
+    wifi_password = config.WIFI_PASSWORD,
+)
+ 
+# Register inputs — slotId must match device registry on ASP.NET server
+for cfg in config.INPUTS:
+    device.add_input_from_config(cfg)
+ 
+device.run()  # blocking — never returns normally
+```
+ 
+---
+ 
+## Developer Configuration (`game/config.py`)
+ 
+All device-specific values in one place:
+ 
+```python
+# WiFi
+WIFI_SSID     = "your-ssid"
+WIFI_PASSWORD = "your-password"
+ 
+# Device identity — must match ASP.NET device registry
+DEVICE_ID = "esp32-ship-1"
+ 
+# MQTT broker
+MQTT_HOST     = "xxxx.hivemq.cloud"
+MQTT_PORT     = 8883
+MQTT_USER     = "your-user"
+MQTT_PASSWORD = "your-password"
+ 
+# Input slots — slotId must match ASP.NET device registry
+INPUTS = [
+    { "slotId": "fire",       "type": "button",     "pin": 14, "debounce_ms": 50 },
+    { "slotId": "joystick-x", "type": "knob",       "pin": 34, "min_raw": 0, "max_raw": 4095, "dead_zone": 0.04 },
+    { "slotId": "joystick-y", "type": "knob",       "pin": 35, "min_raw": 0, "max_raw": 4095, "dead_zone": 0.04 },
+    { "slotId": "dht11",      "type": "dht11",      "pin": 4,  "read_interval_ms": 2000 },
+    { "slotId": "distance",   "type": "ultrasonic", "trig_pin": 5, "echo_pin": 18 },
+]
+```
+ 
+---
+ 
+## Known Limitations (Document for Library Users)
+ 
+- MQTT credentials are stored in plaintext in `config.py`. On a shared device,
+  anyone with flash access can read them. This is a known limitation of
+  MicroPython on ESP32 — no secure enclave is available.
+- The library does not support OTA (over-the-air) firmware updates.
+- Maximum ~10 registered inputs per device due to MicroPython RAM constraints.
