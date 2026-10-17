@@ -1,7 +1,6 @@
 import utime
 from machine import Pin
-from iotgame import wifi
-from iotgame.mqtt import MqttClient
+from mqtt_client import MqttClient
 from iotgame.inputs.button_input import ButtonInput
 from iotgame.inputs.knob_input import KnobInput
 from iotgame.inputs.dht11_input import Dht11Input
@@ -9,12 +8,17 @@ from iotgame.inputs.ultrasonic_input import UltrasonicInput
 
 
 class IoTDevice:
-    def __init__(self, device_id, mqtt_host, mqtt_port, mqtt_user,
-                 mqtt_password, wifi_ssid, wifi_password):
+    def __init__(self, device_id, mqtt_host, mqtt_port, wifi_ssid, wifi_password,
+                 mqtt_user=None, mqtt_password=None,
+                 ca_cert_path=None, cert_path=None, key_path=None):
         self._device_id = device_id
         self._wifi_ssid = wifi_ssid
         self._wifi_password = wifi_password
-        self._mqtt = MqttClient(device_id, mqtt_host, mqtt_port, mqtt_user, mqtt_password)
+        self._mqtt = MqttClient(
+            device_id, mqtt_host, mqtt_port,
+            user=mqtt_user, password=mqtt_password,
+            ca_cert_path=ca_cert_path, cert_path=cert_path, key_path=key_path,
+        )
         self._inputs = []
         self._seq = 0
         self._led = Pin(2, Pin.OUT)
@@ -53,6 +57,7 @@ class IoTDevice:
             utime.sleep_ms(100)
 
     def _ensure_connected(self):
+        from iotgame import wifi
         wifi.connect(self._wifi_ssid, self._wifi_password)
         self._mqtt.connect()
 
@@ -81,6 +86,7 @@ class IoTDevice:
             try:
                 self._ensure_connected()
                 backoff = 1
+                last_ping_ms = utime.ticks_ms()
                 while True:
                     for inp in self._inputs:
                         try:
@@ -91,6 +97,11 @@ class IoTDevice:
                         if events:
                             for ev in events:
                                 self._publish_event(ev)
+                            last_ping_ms = utime.ticks_ms()
+                    now = utime.ticks_ms()
+                    if utime.ticks_diff(now, last_ping_ms) > 30000:
+                        self._mqtt.ping()
+                        last_ping_ms = now
                     utime.sleep_ms(10)
             except Exception as e:
                 print("Device error:", e)

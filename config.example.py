@@ -9,9 +9,13 @@ DEVICE_ID = "esp32-01"
 # MQTT Broker
 MQTT_HOST      = "your-broker-host"
 MQTT_PORT      = 1883
-MQTT_USER      = ""
-MQTT_PASSWORD  = ""
+MQTT_USER      = None
+MQTT_PASSWORD  = None
 MQTT_CLIENT_ID = DEVICE_ID
+
+CA_CERT_PATH  = "ca.crt"
+CERT_PATH     = "device.crt"
+KEY_PATH      = "device.key"
 
 # Topic template — must match server wildcard: game/devices/+/slot/+
 MQTT_TOPIC_TEMPLATE = "game/devices/{device_id}/slot/{slot_id}"
