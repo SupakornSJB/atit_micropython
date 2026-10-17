@@ -1,6 +1,6 @@
 #!/bin/bash
 # Usage: ./gen_device_cert.sh <device-id>
-# Example: ./gen_device_cert.sh esp32-device-1
+# Example: ./gen_device_cert.sh esp32-01
 
 set -e
 DEVICE_ID=$1

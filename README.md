@@ -145,3 +145,9 @@ The broker (Mosquitto) is configured with `require_certificate` and
 connect, and a valid board cannot impersonate another device's topics. The
 [relay server](https://github.com/SupakornSJB/ATITInfraNode) adds intrusion detection
 on top: rate limiting, unknown-slot alerts and quarantine.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).

@@ -22,7 +22,7 @@ def flash_file(port: str, local_path: Path, remote_path: str):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("device_id", help="e.g. esp32-device-1")
+    parser.add_argument("device_id", help="e.g. esp32-01")
     parser.add_argument("--port", default="/dev/ttyUSB0")
     args = parser.parse_args()
 
