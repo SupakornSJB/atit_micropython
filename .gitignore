@@ -13,3 +13,11 @@ config.py
 # OS
 .DS_Store
 Thumbs.db
+# Per-device configs — copy the matching *.example.py and fill in your values
+config_*.py
+!*.example.py
+
+# Private keys / CSRs / CA serials anywhere in the repo (certs/ has its own .gitignore too)
+*.key
+*.csr
+*.srl
