@@ -2,13 +2,14 @@
 
 ## Session Updates Log
 
-Daily notes on problems encountered and solutions applied are in `updates/`.
+Daily notes on problems encountered and solutions applied are in `docs/logs/`.
 Always check the latest file there for context on recent changes before making suggestions.
 
-- [`updates/2026-04-24.md`](updates/2026-04-24.md) — Local Mosquitto setup, WiFi 2.4GHz fix, MQTT config
-- [`updates/2026-04-25.md`](updates/2026-04-25.md) — Phase 2 & 2.1 implementation, slotId protocol fix, DHT11 debugging
-- [`updates/2026-04-26.md`](updates/2026-04-26.md) — Phase 3, 3.1, 3.2 implementation, DEBUG flag, auxiliary field for DHT11
-- [`updates/2026-04-27.md`](updates/2026-04-27.md) — DHT11 slotId fix, ESP32-32U pinout, next steps checklist
+- [`docs/logs/2026-04-24.md`](docs/logs/2026-04-24.md) — Local Mosquitto setup, WiFi 2.4GHz fix, MQTT config
+- [`docs/logs/2026-04-25.md`](docs/logs/2026-04-25.md) — Phase 2 & 2.1 implementation, slotId protocol fix, DHT11 debugging
+- [`docs/logs/2026-04-26.md`](docs/logs/2026-04-26.md) — Phase 3, 3.1, 3.2 implementation, DEBUG flag, auxiliary field for DHT11
+- [`docs/logs/2026-04-27.md`](docs/logs/2026-04-27.md) — DHT11 slotId fix, ESP32-32U pinout, next steps checklist
+- [`docs/logs/2026-05-06.md`](docs/logs/2026-05-06.md) — Phase 6: mutual TLS client cert auth, cert generation scripts, rogue device demo tool
 
 ## What This Project Is
 
