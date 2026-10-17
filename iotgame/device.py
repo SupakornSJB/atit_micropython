@@ -1,6 +1,6 @@
 import utime
 from machine import Pin
-from mqtt_client import MqttClient
+from iotgame.mqtt import MqttClient
 from iotgame.inputs.button_input import ButtonInput
 from iotgame.inputs.knob_input import KnobInput
 from iotgame.inputs.dht11_input import Dht11Input

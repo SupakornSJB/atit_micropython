@@ -1,7 +1,7 @@
 from machine import ADC, Pin
 import utime
 from iotgame.inputs.base import Input
-from iotgame.debug import DEBUG
+from iotgame import debug
 
 
 class KnobInput(Input):
@@ -35,7 +35,7 @@ class KnobInput(Input):
 
         if self._last_value is None or abs(value - self._last_value) > self._dead_zone:
             self._last_value = value
-            if DEBUG: print("[%s] emit: change value=%.3f" % (self.slot_id, value))
+            if debug.DEBUG: print("[%s] emit: change value=%.3f" % (self.slot_id, value))
             return [{"slotId": self.slot_id, "inputType": self.input_type,
                      "event": "change", "value": value}]
 

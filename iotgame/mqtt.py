@@ -10,7 +10,7 @@ class MqttClient:
         self._port = port
         self._user = user or None
         self._password = password or None
-        self._use_tls = port == 8883
+        self._use_tls = ca_cert_path is not None or cert_path is not None
         self._ca_cert = self._load_file(ca_cert_path)
         self._cert = self._load_file(cert_path)
         self._key = self._load_file(key_path)
@@ -40,15 +40,18 @@ class MqttClient:
         if self._use_tls:
             ssl_params = {"server_side": False, "server_hostname": self._host}
             if self._ca_cert:
-                import ussl
+                try:
+                    import ussl as _ssl
+                except ImportError:
+                    import ssl as _ssl
                 ssl_params["cadata"] = self._ca_cert
-                ssl_params["cert_reqs"] = ussl.CERT_REQUIRED
+                ssl_params["cert_reqs"] = _ssl.CERT_REQUIRED
                 print("[MQTT] Broker cert verification: REQUIRED")
             else:
                 print("[MQTT] WARNING: no CA cert — broker cert NOT verified")
             if self._cert and self._key:
-                ssl_params["certfile"] = self._cert
-                ssl_params["keyfile"] = self._key
+                ssl_params["cert"] = self._cert
+                ssl_params["key"] = self._key
                 print("[MQTT] Client cert: present")
             else:
                 print("[MQTT] Client cert: NONE (password auth only)")

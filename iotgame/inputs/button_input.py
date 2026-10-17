@@ -1,7 +1,7 @@
 from machine import Pin
 import utime
 from iotgame.inputs.base import Input
-from iotgame.debug import DEBUG
+from iotgame import debug
 
 
 class ButtonInput(Input):
@@ -22,11 +22,11 @@ class ButtonInput(Input):
                 self._last_state = current
                 self._last_change_ms = now
                 if (current == 0) == self._pull_up:
-                    if DEBUG: print("[%s] emit: pressed" % self.slot_id)
+                    if debug.DEBUG: print("[%s] emit: pressed" % self.slot_id)
                     return [{"slotId": self.slot_id, "inputType": self.input_type,
                              "event": "pressed", "value": 1.0}]
                 else:
-                    if DEBUG: print("[%s] emit: released" % self.slot_id)
+                    if debug.DEBUG: print("[%s] emit: released" % self.slot_id)
                     return [{"slotId": self.slot_id, "inputType": self.input_type,
                              "event": "released", "value": 0.0}]
         return None

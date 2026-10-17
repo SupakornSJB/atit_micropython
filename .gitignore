@@ -21,3 +21,8 @@ config_*.py
 *.key
 *.csr
 *.srl
+
+# IDE settings
+.idea/
+.vscode/
+__pycache__/

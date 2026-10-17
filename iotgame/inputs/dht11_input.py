@@ -2,7 +2,7 @@ import dht
 import machine
 import utime
 from iotgame.inputs.base import Input
-from iotgame.debug import DEBUG
+from iotgame import debug
 
 
 class Dht11Input(Input):
@@ -23,7 +23,7 @@ class Dht11Input(Input):
             self._sensor.measure()
             temp = float(self._sensor.temperature())
             humidity = float(self._sensor.humidity())
-            if DEBUG: print("[%s] raw read: temp=%s hum=%s" % (self.slot_id, temp, humidity))
+            if debug.DEBUG: print("[%s] raw read: temp=%s hum=%s" % (self.slot_id, temp, humidity))
         except Exception as e:
             print("[%s] read error:" % self.slot_id, e)
             return None
@@ -31,7 +31,7 @@ class Dht11Input(Input):
             return None
         self._last_temp = temp
         self._last_humidity = humidity
-        if DEBUG: print("[%s] emit: temp=%.1f hum=%.1f" % (self.slot_id, temp, humidity))
+        if debug.DEBUG: print("[%s] emit: temp=%.1f hum=%.1f" % (self.slot_id, temp, humidity))
         return [{"slotId": self.slot_id, "inputType": self.input_type,
                  "event": "change", "value": temp,
                  "auxiliary": {"humidity": humidity}}]
